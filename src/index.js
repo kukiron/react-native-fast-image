@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react'
+import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import {
     View,
@@ -11,9 +11,20 @@ import {
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-const FastImage = forwardRef(
-    (
-        {
+class FastImage extends Component {
+    state = { loaded: false, error: null }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.source.uri !== props.source.uri) {
+            this.setState({
+                loaded: false,
+                error: null,
+            })
+        }
+    }
+
+    render() {
+        const {
             source,
             onLoadStart,
             onProgress,
@@ -23,47 +34,59 @@ const FastImage = forwardRef(
             style,
             children,
             fallback,
+            placeholder,
             ...props
-        },
-        ref,
-    ) => {
-        const resolvedSource = Image.resolveAssetSource(source)
+        } = this.props
+    }
+    const { loaded, error } = this.state
+    const resolvedSource = Image.resolveAssetSource(source)
 
-        if (fallback) {
-            return (
-                <View style={[styles.imageContainer, style]} ref={ref}>
-                    <Image
-                        {...props}
-                        style={StyleSheet.absoluteFill}
-                        source={resolvedSource}
-                        onLoadStart={onLoadStart}
-                        onProgress={onProgress}
-                        onLoad={onLoad}
-                        onError={onError}
-                        onLoadEnd={onLoadEnd}
-                    />
-                    {children}
-                </View>
-            )
-        }
-
+    if (fallback) {
         return (
-            <View style={[styles.imageContainer, style]} ref={ref}>
-                <FastImageView
+            <View style={[styles.imageContainer, style]} ref={this.props.innerRef}>
+                {(!loaded || error) && placeholder}
+                <Image
                     {...props}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
-                    onFastImageLoadStart={onLoadStart}
-                    onFastImageProgress={onProgress}
-                    onFastImageLoad={onLoad}
-                    onFastImageError={onError}
-                    onFastImageLoadEnd={onLoadEnd}
+                    onLoadStart={onLoadStart}
+                    onProgress={onProgress}
+                    onLoad={onLoad}
+                    onError={onError}
+                    onLoadEnd={onLoadEnd}
                 />
                 {children}
             </View>
         )
-    },
-)
+    }
+
+    return (
+        <View style={[styles.imageContainer, style]} ref={this.props.innerRef}>
+            {(!loaded || error) && placeholder}
+            <FastImageView
+                {...props}
+                style={StyleSheet.absoluteFill}
+                source={resolvedSource}
+                onFastImageLoadStart={onLoadStart}
+                onFastImageProgress={onProgress}
+                onFastImageLoad={onLoad}
+                onFastImageError={data => {
+                    this.setState({
+                        error: true,
+                    })
+                    onError(data)
+                }}
+                onFastImageLoadEnd={data => {
+                    this.setState({
+                        loaded: true,
+                    })
+                    onLoadEnd(data)
+                }}
+            />
+            {children}
+        </View>
+    )
+}
 
 FastImage.displayName = 'FastImage'
 
@@ -134,4 +157,4 @@ const FastImageView = requireNativeComponent('FastImageView', FastImage, {
     },
 })
 
-export default FastImage
+export default React.forwardRef((props, ref) => <FastImage innerRef={ref} {...props}/>);
